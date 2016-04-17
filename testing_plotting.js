@@ -17,7 +17,12 @@ function drawChart(chartData, peer, index) {
                     text: 'Number of updates'
                 }
             },
-            series: chartData
+            series: chartData,
+            plotOptions: {
+                series: {
+                    turboThreshold: 10000
+                }
+            }
         };
     
     var container = $('#container');
