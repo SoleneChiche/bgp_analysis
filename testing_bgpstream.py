@@ -1,21 +1,9 @@
 #!/usr/bin/env python
 import json
-from _pybgpstream import BGPStream, BGPRecord
+import loadData
 
-# Create a new bgpstream instance and a reusable bgprecord instance
-stream = BGPStream()
-rec = BGPRecord()
 start = 1438416000
 stop = 1438417000
-# Consider RIPE RRC 10 only
-stream.add_filter('collector', 'rrc10')
-
-# Consider this time interval:
-# Sat Aug  1 08:20:11 UTC 2015
-stream.add_interval_filter(start, stop)
-
-# Start the stream
-stream.start()
 
 # Get next record
 records = {}
@@ -44,30 +32,7 @@ def countWlast10s(index, records, peer_address):
             pass
     return cntW
 
-while stream.get_next_record(rec):
-    # Print the record information only if it is not a valid record
-    if rec.status != "valid":
-        print rec.project, rec.collector, rec.type, rec.time, rec.status
-    else:
-        elem = rec.get_next_elem()
-        while elem:
-            if elem.peer_address not in records:
-                if elem.type == 'A':
-                    records[elem.peer_address] = {rec.time: {count_a: 1, count_w: 0}}
-                elif elem.type == 'W':
-                    records[elem.peer_address] = {rec.time: {count_a: 0, count_w: 1}}
-            elif elem.peer_address in records:
-                if rec.time not in records[elem.peer_address]:
-                    if elem.type == 'A':
-                        records[elem.peer_address][rec.time] = {count_a: 1, count_w: 0}
-                    elif elem.type == 'W':
-                        records[elem.peer_address][rec.time] = {count_a: 0, count_w: 1}
-                elif rec.time in records[elem.peer_address]:
-                    if elem.type == 'A':
-                        records[elem.peer_address][rec.time][count_a] += 1
-                    elif elem.type == 'W':
-                        records[elem.peer_address][rec.time][count_w] += 1
-            elem = rec.get_next_elem()
+records = loadData.load_data(start, stop)
 
 for key in records:
     graph_points[key] = {}

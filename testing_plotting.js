@@ -20,7 +20,7 @@ function drawChart(chartData, peer, index) {
             series: chartData,
             plotOptions: {
                 series: {
-                    turboThreshold: 10000
+                    turboThreshold: 2000000
                 }
             }
         };
