@@ -17,7 +17,7 @@ count_w_window = 'Count of W last ' + str(window) + ' s'
 def countAlast10s(index, records, peer_address):
     cntA = 0
     for i in range(index-window, index):
-        if i in records[peer_address].keys():
+        if i in records[peer_address]:
             cntA += records[peer_address][i][count_a]
         else:
             pass
@@ -26,7 +26,7 @@ def countAlast10s(index, records, peer_address):
 def countWlast10s(index, records, peer_address):
     cntW = 0
     for i in range(index - window, index):
-        if i in records[peer_address].keys():
+        if i in records[peer_address]:
             cntW += records[peer_address][i][count_w]
         else:
             pass
