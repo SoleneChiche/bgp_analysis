@@ -1,29 +1,17 @@
 from _pybgpstream import BGPStream, BGPRecord
 import sys
-import json
-
+import time
 
 def main():
     start = int(sys.argv[1])
     stop = int(sys.argv[2])
     # collector = sys.argv[3]
-    length_interval = stop - start
-    records_time_interval = 1000
-    count = length_interval // records_time_interval
-    rest = length_interval % records_time_interval
-    if records_time_interval > length_interval:
-        load_data(start, stop, '')
-    else:
-        for i in range (1, count):
-            stop = start + records_time_interval
-            load_data(start, stop, '')
-            start = stop
-        load_data(start, start+rest, '')
-
+    s = time.time()
+    load_data(start, stop, '')
+    e = time.time()
+    print e - s
 
 def load_data(start, stop, collectors):
-    count_a = 'A updates'
-    count_w = 'W updates'
     # collectors is a list of the collectors we want to include
     # Start and stop define the interval we are looking in the data
 
@@ -46,34 +34,42 @@ def load_data(start, stop, collectors):
     # Start the stream
     stream.start()
 
-    records = {}
+    result = open('result.csv', 'w')
+    result.write("peer, timestamp, countA, countW \n")
+    current_time = 0
+    peers = {}
     while stream.get_next_record(rec):
+        timestamp = rec.time
+        if timestamp != current_time:
+            flush_peers(peers, current_time, result)
+            peers = {}
+
+        current_time = timestamp
         # Print the record information only if it is not a valid record
+
         if rec.status != "valid":
-            print rec.project, rec.collector, rec.type, rec.time, rec.status
+            print rec.project, rec.collector, rec.type, timestamp, rec.status
         else:
             elem = rec.get_next_elem()
             while elem:
-                if elem.peer_address not in records:
-                    if elem.type == 'A':
-                        records[elem.peer_address] = {rec.time: {count_a: 1, count_w: 0}}
-                    elif elem.type == 'W':
-                        records[elem.peer_address] = {rec.time: {count_a: 0, count_w: 1}}
-                elif elem.peer_address in records:
-                    if rec.time not in records[elem.peer_address]:
-                        if elem.type == 'A':
-                            records[elem.peer_address][rec.time] = {count_a: 1, count_w: 0}
-                        elif elem.type == 'W':
-                            records[elem.peer_address][rec.time] = {count_a: 0, count_w: 1}
-                    elif rec.time in records[elem.peer_address]:
-                        if elem.type == 'A':
-                            records[elem.peer_address][rec.time][count_a] += 1
-                        elif elem.type == 'W':
-                            records[elem.peer_address][rec.time][count_w] += 1
+                if elem.peer_address not in peers:
+                    peers[elem.peer_address] = {'a': 0, 'w': 0}
+                if elem.type == 'A':
+                    peers[elem.peer_address]['a'] += 1
+                elif elem.type == 'W':
+                    peers[elem.peer_address]['w'] += 1
                 elem = rec.get_next_elem()
 
-    with open('result-'+str(start)+'-'+str(stop)+'.json', 'w') as fp:
-        json.dump(records, fp, indent=2)
+    result.close()
+
+
+def flush_peers(peers, current_time, result):
+    for peer in peers:
+        val_a = peers[peer]['a']
+        val_w = peers[peer]['w']
+        if val_a > 10 or val_w > 10:
+            result.write(peer + ',' + str(current_time) + ',' + str(val_a) + ',' + str(val_w) + '\n')
+
 
 if __name__ == '__main__':
     main()
