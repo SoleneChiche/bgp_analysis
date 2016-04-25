@@ -56,7 +56,7 @@ function processPeerData(data){
 }
 
 function initPage() {
-    $.getJSON('data.json', function (jsonData) {
+    $.getJSON('result.json', function (jsonData) {
          var peers = Object.keys(jsonData);
          peers.forEach(function(peer, index) {
             var data = processPeerData(jsonData[peer]);

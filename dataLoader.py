@@ -33,7 +33,6 @@ def load_data(start, stop, collectors):
 
     # Start the stream
     stream.start()
-
     result = open('result.csv', 'w')
     result.write("peer, timestamp, countA, countW \n")
     current_time = 0
