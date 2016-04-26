@@ -4,7 +4,7 @@ import sys
 
 start = sys.argv[1]
 stop = sys.argv[2]
-window = 60
+window = 120
 graph_points = {}
 count_a_window = 'Count of A last ' + str(window) + ' s'
 count_w_window = 'Count of W last ' + str(window) + ' s'
@@ -14,7 +14,7 @@ list_data = []
 def count_window(index, points, peer, type):
     cnt = 0
     if type == 'A':
-        for i in range(index-window, index):
+        for i in range(index - window, index):
             if i in points[peer]:
                 cnt += points[peer][i]['A']
             else:

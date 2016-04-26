@@ -5,13 +5,13 @@ import time
 def main():
     start = int(sys.argv[1])
     stop = int(sys.argv[2])
-    # collector = sys.argv[3]
     s = time.time()
     load_data(start, stop, '')
     e = time.time()
     print e - s
 
-def load_data(start, stop, collectors):
+
+def load_data(start, stop, collector):
     # collectors is a list of the collectors we want to include
     # Start and stop define the interval we are looking in the data
 
@@ -20,11 +20,13 @@ def load_data(start, stop, collectors):
     rec = BGPRecord()
 
     # Consider RIPE RRC 10 only
-    if collectors:
-        for elem in enumerate(collectors):
-            stream.add_filter('collector', elem)
+    if collector:
+        stream.add_filter('collector', collector)
     else:
-        stream.add_filter('collector', 'rrc10')
+        for i in range(0, 10):
+            stream.add_filter('collector', 'rrc0'+str(i))
+        for i in range(10, 15):
+            stream.add_filter('collector', 'rrc'+str(i))
 
     # Consider this time interval:
     # Sat Aug  1 08:20:11 UTC 2015
@@ -38,6 +40,7 @@ def load_data(start, stop, collectors):
     current_time = 0
     peers = {}
     while stream.get_next_record(rec):
+        print rec.collector
         timestamp = rec.time
         if timestamp != current_time:
             flush_peers(peers, current_time, result)

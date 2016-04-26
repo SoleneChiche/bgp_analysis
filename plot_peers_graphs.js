@@ -20,9 +20,10 @@ function drawChart(chartData, peer, index) {
             series: chartData,
             plotOptions: {
                 series: {
-                    turboThreshold: 2000000
+                    turboThreshold: 500000000
                 }
-            }
+            },
+            colors: ['#FF0000', '#0000FF']
         };
     
     var container = $('#container');
