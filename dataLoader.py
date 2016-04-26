@@ -5,8 +5,9 @@ import time
 def main():
     start = int(sys.argv[1])
     stop = int(sys.argv[2])
+    collector = sys.argv[3]
     s = time.time()
-    load_data(start, stop, '')
+    load_data(start, stop, collector)
     e = time.time()
     print e - s
 
@@ -35,12 +36,11 @@ def load_data(start, stop, collector):
 
     # Start the stream
     stream.start()
-    result = open('result.csv', 'w')
+    result = open('result-'+collector+'.csv', 'w')
     result.write("peer, timestamp, countA, countW \n")
     current_time = 0
     peers = {}
     while stream.get_next_record(rec):
-        print rec.collector
         timestamp = rec.time
         if timestamp != current_time:
             flush_peers(peers, current_time, result)
