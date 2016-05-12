@@ -1,18 +1,21 @@
 from _pybgpstream import BGPStream, BGPRecord
 import sys
+import ast
 import time
+
 
 def main():
     start = int(sys.argv[1])
     stop = int(sys.argv[2])
-    collector = sys.argv[3]
+    collectors = ast.literal_eval(sys.argv[3])
+    print collectors
     s = time.time()
-    load_data(start, stop, collector)
+    load_data(start, stop, collectors)
     e = time.time()
     print e - s
 
 
-def load_data(start, stop, collector):
+def load_data(start, stop, collectors):
     # collectors is a list of the collectors we want to include
     # Start and stop define the interval we are looking in the data
 
@@ -21,8 +24,11 @@ def load_data(start, stop, collector):
     rec = BGPRecord()
 
     # Consider RIPE RRC 10 only
-    if collector:
-        stream.add_filter('collector', collector)
+    print
+    if collectors:
+        for collector in collectors:
+            print collector
+            stream.add_filter('collector', collector)
     else:
         for i in range(0, 10):
             stream.add_filter('collector', 'rrc0'+str(i))
@@ -36,7 +42,7 @@ def load_data(start, stop, collector):
 
     # Start the stream
     stream.start()
-    result = open('result-'+collector+'.csv', 'w')
+    result = open('result-'+'-'.join(collectors)+'.csv', 'w')
     result.write("peer, timestamp, countA, countW \n")
     current_time = 0
     peers = {}
@@ -55,11 +61,13 @@ def load_data(start, stop, collector):
             elem = rec.get_next_elem()
             while elem:
                 if elem.peer_address not in peers:
-                    peers[elem.peer_address] = {'a': 0, 'w': 0}
+                    peers[elem.peer_address] = {'a': 0, 'w': 0, 'prefix_a': [], 'prefix_w': []}
                 if elem.type == 'A':
                     peers[elem.peer_address]['a'] += 1
+                    peers[elem.peer_address]['prefix_a'].append(elem.fields['prefix'])
                 elif elem.type == 'W':
                     peers[elem.peer_address]['w'] += 1
+                    peers[elem.peer_address]['prefix_w'].append(elem.fields['prefix'])
                 elem = rec.get_next_elem()
 
     result.close()
@@ -69,10 +77,8 @@ def flush_peers(peers, current_time, result):
     for peer in peers:
         val_a = peers[peer]['a']
         val_w = peers[peer]['w']
-        if val_a > 10 or val_w > 10:
-            result.write(peer + ',' + str(current_time) + ',' + str(val_a) + ',' + str(val_w) + '\n')
-
-
+        result.write(peer + ',' + str(current_time) + ',' + str(val_a) + ',' + str(val_w) + '\n')
+        result.write('prefixA' + ',' + ','.join(peers[peer]['prefix_a']) + '\n')
+        result.write('prefixW' + ',' + ','.join(peers[peer]['prefix_w']) + '\n')
 if __name__ == '__main__':
     main()
-

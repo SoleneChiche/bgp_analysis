@@ -57,13 +57,29 @@ function processPeerData(data){
 }
 
 function initPage() {
-    $.getJSON('result.json', function (jsonData) {
-         var peers = Object.keys(jsonData);
-         peers.forEach(function(peer, index) {
-            var data = processPeerData(jsonData[peer]);
-            drawChart(data, peer, index);
-        });
+    var file_names;
+    file_names = [];
+    $.getJSON('json_file_names.json', function (jsonData) {
+        file_names = jsonData;
+        jsonToGraphs(file_names);
     });
+}
+
+function jsonToGraphs(file_names){
+
+var focus = $("<div />");
+for(var i = 0; i < file_names.length; i++) {
+    (function (i) {
+        focus.queue('filenames', function (next) {
+            $.getJSON(file_names[i], function(jsonData) {
+                var data = processPeerData(jsonData);
+                drawChart(data, file_names[i].replace('..','.'), i);
+                next();
+            });
+        });
+    })(i);
+}
+focus.dequeue('filenames');
 }
 
 $(initPage);
