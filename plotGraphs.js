@@ -73,7 +73,7 @@ for(var i = 0; i < file_names.length; i++) {
         focus.queue('filenames', function (next) {
             $.getJSON(file_names[i], function(jsonData) {
                 var data = processPeerData(jsonData);
-                drawChart(data, file_names[i].replace('..','.'), i);
+                drawChart(data, file_names[i].replace('_',':'), i);
                 next();
             });
         });
