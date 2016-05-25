@@ -4,6 +4,7 @@ import ast
 import time
 import json
 import os
+import csv
 
 burst2writeA = {}
 burst2writeW = {}
@@ -24,10 +25,10 @@ def main():
     print 'Total time: ', (e - s)
 
 
-def saveGraphPoint(queue, updateType, peer, timestamp):
+def saveGraphPoint(queue, updateType, peer, timestamp, collectors):
     if len(queue) > THSLD:
         if peer not in graph_points:
-            fd = open('csv_peernames.csv', 'a')
+            fd = open('csv_peernames-'+'-'.join(collectors)+'.csv', 'a')
             fd.write(peer.replace(':', '_')+'/'+peer.replace(':', '_') + '-graph.json' + '\n')
             fd.close()
             graph_points[peer] = {}
@@ -144,10 +145,10 @@ def load_data(start, stop, collectors, window):
                 update = {'tst': timestamp, 'prefix': prefix}
                 if updatetype == 'A':
                     handleUpdate(peers[peer]['queueA'], burst2writeA, update, peer, updatetype, timestamp, window)
-                    saveGraphPoint(peers[peer]['queueA'], updatetype, peer, timestamp)
+                    saveGraphPoint(peers[peer]['queueA'], updatetype, peer, timestamp, collectors)
                 else:
                     handleUpdate(peers[peer]['queueW'], burst2writeW, update, peer, updatetype, timestamp, window)
-                    saveGraphPoint(peers[peer]['queueW'], updatetype, peer, timestamp)
+                    saveGraphPoint(peers[peer]['queueW'], updatetype, peer, timestamp, collectors)
                 elem = rec.get_next_elem()
 
     for peer in graph_points:
@@ -169,6 +170,22 @@ def load_data(start, stop, collectors, window):
             if burst2writeW[peer]:
                 for timestamp in burst2writeW[peer]:
                     writeBurst(peer, burst2writeW, 'W', timestamp)
+
+    # transform csv names in json file to use getJSON in plotGrap
+    # step to CSV is used to avoid appending to the end of a json file directly as appending overwrite the whole file
+    jsonlist = []
+    with open('csv_peernames-'+'-'.join(collectors)+'.csv', 'rb') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            jsonlist.append(row[0])
+
+    print json.dumps(jsonlist, indent=2)
+    print jsonlist
+    jsondata = json.dumps(jsonlist, indent=2)
+    print collectors
+    fd = open('json_file_names-' + '-'.join(collectors) + '.json', 'w')
+    fd.write(jsondata)
+    fd.close()
 
 
 if __name__ == '__main__':
