@@ -3,12 +3,13 @@ import sys
 import ast
 import time
 import json
+import os
 
 burst2writeA = {}
 burst2writeW = {}
-graph_points= {}
-peer_names_list = []
+graph_points = {}
 THSLD = 100
+
 
 def main():
     start = int(sys.argv[1])
@@ -16,11 +17,81 @@ def main():
     print 'Interval: ' + str(stop-start)
     collectors = ast.literal_eval(sys.argv[3])
     window = int(sys.argv[4])
-    print collectors
     s = time.time()
     load_data(start, stop, collectors, window)
+
     e = time.time()
     print 'Total time: ', (e - s)
+
+
+def saveGraphPoint(queue, updateType, peer, timestamp):
+    if len(queue) > THSLD:
+        if peer not in graph_points:
+            fd = open('csv_peernames.csv', 'a')
+            fd.write(peer.replace(':', '_')+'/'+peer.replace(':', '_') + '-graph.json' + '\n')
+            fd.close()
+            graph_points[peer] = {}
+        if timestamp not in graph_points[peer]:
+            graph_points[peer][timestamp] = {'A': 0, 'W': 0}
+
+        graph_points[peer][timestamp][updateType] = len(queue)
+
+
+def cleanQueue(queue, timestamp, window):
+    if queue and timestamp > queue[-1]['tst']:
+        while queue:
+            if queue[0]['tst'] < timestamp - window:
+                del queue[0]
+            else:
+                break
+
+def currentBurstTime(burstqueue, peer, timestamp, window):
+    if peer not in burstqueue or not burstqueue[peer]:
+        return None
+    else:
+        lasttst = max(burstqueue[peer].keys())
+        if timestamp - window > lasttst:
+            return None
+        return lasttst
+
+
+def writeBurst(peer, burstqueue, updatetype, timestamp):
+    peer_file_name = peer.replace(':', '_')
+    if not os.path.exists(peer_file_name):
+        os.makedirs(peer_file_name)
+
+    if updatetype == 'A':
+        with open(peer_file_name+'/'+peer_file_name+'-'+str(timestamp)+'-burstA.csv', 'a') as f:
+            for elem in burstqueue[peer][timestamp]:
+                f.write(str(elem['tst']) + ',' + elem['prefix'] + '\n')
+    else:
+        with open(peer_file_name+'/'+peer_file_name+'-'+str(timestamp)+'-burstW.csv', 'a') as f:
+            for elem in burstqueue[peer][timestamp]:
+                f.write(str(elem['tst']) + ',' + elem['prefix'] + '\n')
+
+
+def handleUpdate(queue, burstqueue, update, peer, updatetype, timestamp, window):
+
+    cleanQueue(queue, timestamp, window)
+    queue.append(update)
+    length = len(queue)
+
+    lasttst = currentBurstTime(burstqueue, peer, timestamp, window)
+    # not recording any burst and we are detecting a burst
+    # we record the end of the burst
+    if lasttst:
+        burstqueue[peer][lasttst].append(update)
+    # not recording any burst and we are detecting a burst
+    elif length > THSLD:
+        if peer not in burstqueue:
+            burstqueue[peer] = {}
+        burstqueue[peer][timestamp] = []
+        for elem in queue:
+            burstqueue[peer][timestamp].append(elem)
+        if len(burstqueue[peer]) > 1:
+            writeBurst(peer, burstqueue, updatetype, min(burstqueue[peer]))
+            del burstqueue[peer][min(burstqueue[peer])]
+
 
 def load_data(start, stop, collectors, window):
     peers = {}
@@ -63,9 +134,6 @@ def load_data(start, stop, collectors, window):
                     continue
 
                 peer = elem.peer_address
-                if peer.replace(':', '_')+'-graph.json' not in peer_names_list:
-                    peer_names_list.append(peer.replace(':', '_')+'-graph.json')
-
                 updatetype = elem.type
                 prefix = elem.fields['prefix']
                 if peer not in peers:
@@ -75,88 +143,33 @@ def load_data(start, stop, collectors, window):
                     }
                 update = {'tst': timestamp, 'prefix': prefix}
                 if updatetype == 'A':
-                    handleUpdate(peers[peer]['queueA'], burst2writeA, update, peer, timestamp, window)
+                    handleUpdate(peers[peer]['queueA'], burst2writeA, update, peer, updatetype, timestamp, window)
                     saveGraphPoint(peers[peer]['queueA'], updatetype, peer, timestamp)
                 else:
-                    handleUpdate(peers[peer]['queueW'], burst2writeW, update, peer, timestamp, window)
+                    handleUpdate(peers[peer]['queueW'], burst2writeW, update, peer, updatetype, timestamp, window)
                     saveGraphPoint(peers[peer]['queueW'], updatetype, peer, timestamp)
                 elem = rec.get_next_elem()
-    """
-    print len(burst2writeA)
-    print burst2writeA.keys()
-    print len(burst2writeW)
-    print burst2writeW.keys()
-    for peerName in burst2writeA:
-        peer = burst2writeA[peerName]
-        for burstTime in peer:
-            burst = peer[burstTime]
-            print burst[-1]['tst']- burst[0]['tst']
-    print json.dumps(burst2writeA, indent=2)
-    """
-
-    for peer in burst2writeA:
-        with open(peer.replace(':', '_')+'-burstA.json', 'w') as outfile:
-            json.dump(burst2writeA[peer], outfile, indent=2)
-
-    for peer in burst2writeW:
-        with open(peer.replace(':', '_') + '-burstW.json', 'w') as outfile:
-            json.dump(burst2writeW[peer], outfile, indent=2)
 
     for peer in graph_points:
-        with open(peer.replace(':', '_') + '-graph.json', 'w') as outfile:
+        peer_file_name = peer.replace(':', '_')
+        if not os.path.exists(peer_file_name):
+            os.makedirs(peer_file_name)
+        with open(peer_file_name+'/'+peer_file_name + '-graph.json', 'w') as outfile:
             json.dump(graph_points[peer], outfile, indent=2)
 
-    with open('json_file_names.json', 'w') as outfile:
-         json.dump(peer_names_list, outfile, indent=2)
+    # print last bursts
+    if burst2writeA:
+        for peer in burst2writeA:
+            if burst2writeA[peer]:
+                for timestamp in burst2writeA[peer]:
+                    writeBurst(peer, burst2writeA, 'A', timestamp)
 
+    if burst2writeW:
+        for peer in burst2writeW:
+            if burst2writeW[peer]:
+                for timestamp in burst2writeW[peer]:
+                    writeBurst(peer, burst2writeW, 'W', timestamp)
 
-def saveGraphPoint(queue, updateType, peer, timestamp):
-    if len(queue) > THSLD:
-        if peer not in graph_points:
-            graph_points[peer] = {}
-        if timestamp not in graph_points[peer]:
-            graph_points[peer][timestamp] = {'A': 0, 'W': 0}
-
-        graph_points[peer][timestamp][updateType] = len(queue)
-
-
-def cleanQueue(queue, timestamp, window):
-    if queue and timestamp > queue[-1]['tst']:
-        while queue:
-            if queue[0]['tst'] < timestamp - window:
-                del queue[0]
-            else:
-                break
-        # if queue:
-        #     print queue[-1]['tst'] - queue[0]['tst']
-
-
-def currentBurstTime(burstqueue, peer, timestamp, window):
-    if peer not in burstqueue or not burstqueue[peer]:
-        return None
-    else:
-        lasttst = max(burstqueue[peer].keys())
-        if timestamp - window > lasttst:
-            return None
-        return lasttst
-
-
-def handleUpdate(queue, burstqueue, update, peer, timestamp, window):
-
-    cleanQueue(queue, timestamp, window)
-    queue.append(update)
-    length = len(queue)
-
-    lasttst = currentBurstTime(burstqueue, peer, timestamp, window)
-    # not recording any burst and we are detecting a burst
-    # we record the end of the burst
-    if lasttst:
-        burstqueue[peer][lasttst].append(update)
-    # not recording any burst and we are detecting a burst
-    elif length > THSLD:
-        if peer not in burstqueue:
-            burstqueue[peer] = {}
-        burstqueue[peer][timestamp] = list(queue)
 
 if __name__ == '__main__':
     main()
