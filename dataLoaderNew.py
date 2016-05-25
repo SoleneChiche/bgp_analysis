@@ -9,7 +9,7 @@ import csv
 burst2writeA = {}
 burst2writeW = {}
 graph_points = {}
-THSLD = 100
+THSLD = 5000
 
 
 def main():
@@ -179,10 +179,8 @@ def load_data(start, stop, collectors, window):
         for row in reader:
             jsonlist.append(row[0])
 
-    print json.dumps(jsonlist, indent=2)
-    print jsonlist
+
     jsondata = json.dumps(jsonlist, indent=2)
-    print collectors
     fd = open('json_file_names-' + '-'.join(collectors) + '.json', 'w')
     fd.write(jsondata)
     fd.close()
