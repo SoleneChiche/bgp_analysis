@@ -6,8 +6,8 @@ import json
 import os
 import csv
 
-burst2writeA = {}   #
-burst2writeW = {}
+burst2writeA = {}   # Dictionary recording the A updates
+burst2writeW = {}   # Dictionary recording the W updates
 graph_points = {}   # Dictionary with all peers and their burst counts, used to plot the graphs of the bursts
 
 

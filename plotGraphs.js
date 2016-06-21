@@ -1,4 +1,6 @@
+// Highcharts set up function
 function drawChart(chartData, peer, index) {
+    // options to configure the highcharts plot
     var options = {
             chart: {
                 type: 'line'
@@ -8,6 +10,9 @@ function drawChart(chartData, peer, index) {
             },
             xAxis: {
                 type: 'datetime',
+                title: {
+                    text: 'Date'
+                },
                 labels: {
                 rotation: -45
                 }
@@ -20,12 +25,13 @@ function drawChart(chartData, peer, index) {
             series: chartData,
             plotOptions: {
                 series: {
-                    turboThreshold: 500000000
+                    turboThreshold: 500000000  // Number of point the plot can handle
                 }
             },
             colors: ['#FF0000', '#0000FF']
         };
-    
+
+    // Append the graph to a new div container
     var container = $('#container');
     var chart = document.createElement('div');
     chart.id = 'chart' + index;
@@ -33,6 +39,7 @@ function drawChart(chartData, peer, index) {
     $('#'+chart.id).highcharts(options);
 }
 
+// Helper to get the value of an object
 function valuesOfObject(object) {
   var values = [];
   for(var property in object) {
@@ -41,6 +48,7 @@ function valuesOfObject(object) {
   return values;
 }
 
+// Transform the data {timestamp ==> x : {'A':..., 'W':... ==> y}}
 function processPeerData(data){
     var tmp = {};
 
@@ -56,15 +64,17 @@ function processPeerData(data){
     return valuesOfObject(tmp);
 }
 
+// Get the json file names
 function initPage() {
     var file_names;
     file_names = [];
-    $.getJSON('json_file_names.json', function (jsonData) {
+    $.getJSON('json_file_names-rrc.json', function (jsonData) {
         file_names = jsonData;
         jsonToGraphs(file_names);
     });
 }
 
+// Loop over the filenames and asynchronously get the JSON to be processed
 function jsonToGraphs(file_names){
 
 var focus = $("<div />");
