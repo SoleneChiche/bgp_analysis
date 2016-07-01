@@ -1,19 +1,36 @@
 -- First, be sure to require the 'nn' package for the neural network functions
 require 'nn';
+require "nnsparse";
+csv2tensor = require 'csv2tensor'
 
--- Number of training samples (pair {600'000 input, 600'000 output expected})
-nExamples = 10
--- Input size: size of the largest burst found in the training set
--- Contain the prefixes observed
-inputSize = 600000
+-- Number of training samples
+nExamples = 50
+-- Input size: all prefixes observed
+inputSize = 759778
 -- Output size: same size as input.
--- Contain the correct next prefixes to be predicted
-outputSize = 600000
+outputSize = 759778
 
--- Trainset empty, to be filled with the csv files
+-- This is where we build the model
+model = nn.Sequential()                       -- Create a Sequential network
+-- First SparseLinear layer
+model:add(nn.SparseLinear(inputSize, 1000))
+-- Current most effective activation function
+model:add(nn.ReLU())
+-- Second SparseLinear layer
+model:add(nn.Linear(1000, outputSize))
+--model:add(nn.ReLU())
+-- Current most effective activation function
+--model:add(nn.SoftMax())
+
+print(model)
+
+criterion = nn.AbsCriterion()
+--nn.MultiLabelSoftMarginCriterion() --nn.MSECriterion() --nn.ClassNLLCriterion() --nnsparse.SparseCriterion(nn.MSECriterion())
+trainer = nn.StochasticGradient(model, criterion)
+trainer.learningRate = 0.1
+trainer.maxIteration = 50
+
 trainset = {}
-trainset.data = torch.Tensor(nExamples, inputSize):zero()
-trainset.label = torch.Tensor(nExamples, outputSize):zero()
 
 --The network trainer expects an index metatable
 setmetatable(trainset,
@@ -27,47 +44,39 @@ function trainset:size()
     return self.data:size(1)
 end
 
--- Generate the Training set from the csv files
 function GenerateTrainingSet()
+    trainset.data = torch.Tensor(nExamples,200,2):zero()
+    trainset.label = torch.Tensor(nExamples, outputSize):zero()
+
     for i=1,nExamples do
-      for j=1,inputSize do
-        -- Data = input for the system
-        trainset.data[i][j] = 0
-        -- Label = output expected as groundtruth
-        -- TODO: label will need normalization
-        trainset.label[i][j] = 1
-      end
+        local start = (i-1) * 210
+        local mid = start + 200
+        local stop = mid + 10
+
+        -- Generate the Training set from the csv files
+        local oneDTensorInput, colIn = csv2tensor.load('burstInput/inputVector'..tostring(start)..'-'..tostring(mid)..'.csv')
+        local twoDTensorInput = oneDTensorInput:sparsify()
+
+        local oneDTensorLabel, colOut = csv2tensor.load('burstLabel/labelVector'..tostring(mid)..'-'..tostring(stop)..'.csv')
+
+        trainset.data[i] = twoDTensorInput
+        trainset.label[i] = oneDTensorLabel-- / torch.norm(oneDTensorLabel)
     end
---    print(trainset.data)
---    print(trainset.label)
 end
 
+oneDTensorInput, column_names_input = csv2tensor.load('burstInput/inputVector0-200.csv')
+twoDTensorInput = oneDTensorInput:sparsify()
+--oneDTensorLabel, column_names_label = csv2tensor.load('burstLabel/labelVector200-210.csv')
+--pairInputLabel = {twoDTensorInput, oneDTensorLabel / torch.norm(oneDTensorLabel)}
+--print(pairInputLabel)
+--trainset.data = torch.reshape(twoDTensorInput, nExamples, 200, 2)
+--trainset.label = torch.reshape(oneDTensorLabel / torch.norm(oneDTensorLabel), nExamples, outputSize)
 
+
+print("Generating training set...")
 GenerateTrainingSet()
-
--- This is where we build the model
-model = nn.Sequential()                       -- Create a Sequential network
--- First Linear layer (TODO: SparseLayer instead)
-model:add(nn.Linear(inputSize, 100000))
--- Current most effective activation function
-model:add(nn.ReLU())
--- Second Linear layer (TODO: SparseLayer instead)
-model:add(nn.Linear(100000,outputSize))
--- Current most effective activation function
-model:add(nn.SoftMax())
-
-print(model)
-
-criterion = nn.MSECriterion()
-trainer = nn.StochasticGradient(model, criterion)
-trainer.learningRate = 0.01
-trainer.maxIteration = 100
-
+print("Train the model...")
 trainer:train(trainset)
+print("Forward an input to be tested")
+print(model:forward(twoDTensorInput))
 
-a = torch.Tensor(inputSize):zero()
-for k=1, inputSize do
-  a[k] = math.random(0, 1)
-end
-b = model:forward(a)
-print(b)

@@ -98,30 +98,31 @@ def writeBurst(peer, burstqueue, updatetype, timestamp):
 
 
 # Handle a new update collected by the loader
-def handleUpdate(queue, burstqueue, update, peer, updatetype, timestamp, window, threshold):
+def handleUpdate(queue, burstQueue, update, peer, updatetype, timestamp, window, threshold):
 
     # Clean the queue before handling the update
     cleanQueue(queue, timestamp, window)
     queue.append(update)
     length = len(queue)
 
-    lasttst = currentBurstTime(burstqueue, peer, timestamp, window)
+    lasttst = currentBurstTime(burstQueue, peer, timestamp, window)
 
     # we record the end of the burst if a timestamp is still in a burst window
     if lasttst:
-        burstqueue[peer][lasttst].append(update)
+        burstQueue[peer][lasttst].append(update)
     # not recording any burst and we are detecting a burst
     elif length > threshold:
-        if peer not in burstqueue:
-            burstqueue[peer] = {}
-        burstqueue[peer][timestamp] = []
+        if peer not in burstQueue:
+            burstQueue[peer] = {}
+        burstQueue[peer][timestamp] = []
         # Record what we already have in the queue in burstqueue
         for elem in queue:
-            burstqueue[peer][timestamp].append(elem)
+            burstQueue[peer][timestamp].append(elem)
         # Write in a csv file the first window seconds of the burst
-        if len(burstqueue[peer]) > 1:
-            writeBurst(peer, burstqueue, updatetype, min(burstqueue[peer]))
-            del burstqueue[peer][min(burstqueue[peer])]
+        if len(burstQueue[peer]) > 1:
+            writeBurst(peer, burstQueue, updatetype, min(burstQueue[peer]))
+            del burstQueue[peer][min(burstQueue[peer])]
+
 
 # Main function to load the data and process it
 def load_data(start, stop, collectors, window, threshold):
@@ -130,7 +131,7 @@ def load_data(start, stop, collectors, window, threshold):
     # collectors is a list of the collectors we want to include
     # Start and stop define the interval we are looking in the data
 
-    # Create a new bgpstream instance and a reusable bgprecord instance
+    # Create a new BGPStream instance and a reusable BGPRecord instance
     stream = BGPStream()
     rec = BGPRecord()
 
@@ -145,6 +146,8 @@ def load_data(start, stop, collectors, window, threshold):
             stream.add_filter('collector', 'rrc0' + str(i))
         for i in range(10, 16):
             stream.add_filter('collector', 'rrc' + str(i))
+
+    stream.add_filter('record-type', 'updates')
 
     # Consider the interval from "start" to "stop" in seconds since epoch
     stream.add_interval_filter(start, stop)
